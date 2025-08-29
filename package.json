@@ -1,0 +1,32 @@
+{
+  "name": "ecg-monitor",
+  "version": "1.0.0",
+  "description": "Real-time ECG monitoring system with ESP32 and web dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "keywords": [
+    "ecg",
+    "monitoring",
+    "esp32",
+    "iot",
+    "healthcare",
+    "real-time",
+    "mqtt",
+    "websocket"
+  ],
+  "author": "Maharshi",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "local"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
