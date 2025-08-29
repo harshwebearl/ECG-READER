@@ -1187,63 +1187,26 @@ class ECGMonitor {
       return;
     }
 
-    // Prepare chart data with proper medical-grade processing
+    // Prepare chart data for last 10 seconds (smooth, medical style)
     const chartData = [];
-    const segmentSeconds = 2; // Show last 2 seconds
+    const segmentSeconds = 10; // Show last 10 seconds for smooth waveform
     const maxPoints = Math.min(this.ecgData.length, segmentSeconds * this.samplingRate);
     const startIndex = Math.max(0, this.ecgData.length - maxPoints);
-
-    // EXACTLY like Serial Plotter - NO PROCESSING, just display raw values
     const rawData = this.ecgData.slice(startIndex);
-
-    // Debug: Log raw data to match Serial Plotter output
-    if (this.dataCount <= 10) {
-      console.log('Raw ECG data (like Serial Plotter):', {
-        rawADC: rawData.slice(0, 10),
-        range: { min: Math.min(...rawData), max: Math.max(...rawData) },
-        baseline: rawData.reduce((a,b) => a+b, 0) / rawData.length,
-        totalPoints: rawData.length,
-        samplingRate: this.samplingRate
-      });
-    }
-
-    // NO PROCESSING - Display raw ADC values exactly like Serial Plotter
-    // Calculate time based on actual data position for continuous scrolling
 
     for (let i = 0; i < rawData.length; i++) {
       const absoluteIndex = startIndex + i;
       const timeSeconds = absoluteIndex / this.samplingRate;
-      const rawADC = rawData[i]; // Use raw ADC value directly
-
-      // Use RAW ADC values exactly like Serial Plotter (no conversion!)
-      // Serial Plotter shows perfect ECG with raw ADC values 0-4095
-      const displayValue = rawADC; // Use raw ADC value directly
-
       chartData.push({
         x: timeSeconds,
-        y: displayValue
+        y: rawData[i]
       });
     }
 
-    // Update chart data
     this.ecgChart.data.datasets[0].data = chartData;
-
-    // Update x-axis to show only the segment
     const currentTimeTotal = this.ecgData.length / this.samplingRate;
     this.ecgChart.options.scales.x.min = currentTimeTotal - segmentSeconds;
     this.ecgChart.options.scales.x.max = currentTimeTotal;
-
-    // Debug logging for first few updates
-    if (this.dataCount <= 20 || this.dataCount % 1000 === 0) {
-      console.log('Chart time axis update:', {
-        dataCount: this.dataCount,
-        currentTimeTotal: currentTimeTotal.toFixed(2),
-        chartMin: this.ecgChart.options.scales.x.min.toFixed(2),
-        chartMax: this.ecgChart.options.scales.x.max.toFixed(2),
-        dataPoints: chartData.length
-      });
-    }
-
     try {
       this.ecgChart.update('none');
     } catch (error) {
