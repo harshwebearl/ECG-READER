@@ -265,15 +265,10 @@ class ECGMonitor {
   }
   
   initializeCharts() {
-    // Initialize Enhanced ECG Chart with Medical Grid
     const ecgCtx = document.getElementById('ecgChart').getContext('2d');
+    if (!ecgCtx) return;
 
-    if (!ecgCtx) {
-      console.error('ECG Chart canvas element not found!');
-      return;
-    }
-
-    // Create medical-grade ECG chart with proper configuration
+    // Show only last 4 seconds, ADC values, medical grid
     this.ecgChart = new Chart(ecgCtx, {
       type: 'line',
       data: {
@@ -294,14 +289,8 @@ class ECGMonitor {
         responsive: true,
         maintainAspectRatio: false,
         animation: false,
-        parsing: {
-          xAxisKey: 'x',
-          yAxisKey: 'y'
-        },
-        interaction: {
-          intersect: false,
-          mode: 'index'
-        },
+        parsing: { xAxisKey: 'x', yAxisKey: 'y' },
+        interaction: { intersect: false, mode: 'index' },
         scales: {
           x: {
             type: 'linear',
@@ -311,14 +300,11 @@ class ECGMonitor {
               display: true,
               text: 'Time (seconds)',
               color: '#666',
-              font: {
-                size: 12,
-                weight: 'bold'
-              }
+              font: { size: 12, weight: 'bold' }
             },
             grid: {
               display: true,
-              color: '#ff6b6b',              // Red grid lines (medical standard)
+              color: '#ff6b6b',
               lineWidth: 0.5,
               drawTicks: true,
               tickLength: 5
@@ -326,16 +312,12 @@ class ECGMonitor {
             ticks: {
               display: true,
               color: '#666',
-              font: {
-                size: 10
-              },
-              maxTicksLimit: 11,              // 0, 1, 2, ..., 10 seconds
-              callback: function(value) {
-                return value.toFixed(0) + 's';
-              }
+              font: { size: 10 },
+              stepSize: 2,
+              callback: value => value.toFixed(0) + 's'
             },
             min: 0,
-            max: 10                         // Initial: Show 10 seconds, then will scroll dynamically
+            max: 4 // Show last 4 seconds
           },
           y: {
             type: 'linear',
@@ -345,46 +327,28 @@ class ECGMonitor {
               display: true,
               text: 'ADC Value (Raw)',
               color: '#666',
-              font: {
-                size: 12,
-                weight: 'bold'
-              }
+              font: { size: 12, weight: 'bold' }
             },
             grid: {
               display: true,
-              color: function(context) {
-                // Major grid lines every 500 ADC units (darker)
-                if (context.tick.value % 500 === 0) {
-                  return '#ff6b6b';
-                }
-                // Minor grid lines every 100 ADC units (lighter)
-                return '#ffcccc';
-              },
-              lineWidth: function(context) {
-                return context.tick.value % 500 === 0 ? 0.8 : 0.3;
-              },
+              color: context => context.tick.value % 500 === 0 ? '#ff6b6b' : '#ffcccc',
+              lineWidth: context => context.tick.value % 500 === 0 ? 0.8 : 0.3,
               drawTicks: true,
               tickLength: 5
             },
             ticks: {
               display: true,
               color: '#666',
-              font: {
-                size: 10
-              },
+              font: { size: 10 },
               stepSize: 500,
-              callback: function(value) {
-                return value.toString();
-              }
+              callback: value => value.toString()
             },
-            min: 0,                         // 0 ADC minimum (ESP32 range)
-            max: 4095                       // 4095 ADC maximum (ESP32 12-bit ADC)
+            min: 0,
+            max: 4095
           }
         },
         plugins: {
-          legend: {
-            display: false
-          },
+          legend: { display: false },
           tooltip: {
             enabled: true,
             mode: 'nearest',
@@ -395,15 +359,10 @@ class ECGMonitor {
             borderColor: '#666',
             borderWidth: 1,
             callbacks: {
-              title: function(context) {
-                return 'Time: ' + context[0].parsed.x.toFixed(3) + 's';
-              },
-              label: function(context) {
-                return 'ECG: ' + context.parsed.y.toFixed(2) + 'mV';
-              }
+              title: ctx => 'Time: ' + ctx[0].parsed.x.toFixed(3) + 's',
+              label: ctx => 'ECG: ' + ctx.parsed.y + ' ADC'
             }
           },
-          // Custom sweep line plugin
           sweepLine: {
             enabled: true,
             color: 'rgba(255, 0, 0, 0.8)',
@@ -411,14 +370,8 @@ class ECGMonitor {
           }
         },
         elements: {
-          line: {
-            tension: 0,
-            capBezierPoints: false
-          },
-          point: {
-            radius: 0,
-            hoverRadius: 3
-          }
+          line: { tension: 0, capBezierPoints: false },
+          point: { radius: 0, hoverRadius: 3 }
         }
       }
     });
@@ -1178,22 +1131,16 @@ class ECGMonitor {
   }
 
   updateECGChart() {
-    if (!this.ecgChart) {
-      console.warn('ECG Chart not initialized');
-      return;
-    }
+    if (!this.ecgChart) return;
+    if (this.ecgData.length === 0) return;
 
-    if (this.ecgData.length === 0) {
-      return;
-    }
-
-    // Prepare chart data for last 10 seconds (smooth, medical style)
-    const chartData = [];
-    const segmentSeconds = 10; // Show last 10 seconds for smooth waveform
+    // Show last 4 seconds
+    const segmentSeconds = 4;
     const maxPoints = Math.min(this.ecgData.length, segmentSeconds * this.samplingRate);
     const startIndex = Math.max(0, this.ecgData.length - maxPoints);
     const rawData = this.ecgData.slice(startIndex);
 
+    const chartData = [];
     for (let i = 0; i < rawData.length; i++) {
       const absoluteIndex = startIndex + i;
       const timeSeconds = absoluteIndex / this.samplingRate;
@@ -1205,7 +1152,7 @@ class ECGMonitor {
 
     this.ecgChart.data.datasets[0].data = chartData;
     const currentTimeTotal = this.ecgData.length / this.samplingRate;
-    this.ecgChart.options.scales.x.min = currentTimeTotal - segmentSeconds;
+    this.ecgChart.options.scales.x.min = Math.max(0, currentTimeTotal - segmentSeconds);
     this.ecgChart.options.scales.x.max = currentTimeTotal;
     try {
       this.ecgChart.update('none');
