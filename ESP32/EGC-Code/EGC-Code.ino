@@ -24,7 +24,7 @@ struct ECGData {
   int ecg_value;
 };
 ECGData ecgBuffer[MAX_SAMPLES];
-int sampleIndex = 0;  
+int sampleIndex = 0;
 
 // Forward declarations for buzzer functions
 void buzzerBeep(int duration = 200);
@@ -49,7 +49,7 @@ unsigned long lastSendTime = 0;
 unsigned long lastHeartbeat = 0;
 unsigned long lastReconnectAttempt = 0;
 const int sendInterval = 10; // 100Hz sampling rate
-const int heartbeatInterval = 30000;
+const int heartbeatInterval = 300000;
 const int reconnectInterval = 5000;
 
 // Connection tracking
