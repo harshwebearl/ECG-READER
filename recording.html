@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ECG Multi-Lead Recording</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="recording-styles.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>ECG Multi-Lead Recording System</h1>
+      <p class="subtitle">10-second ECG recordings for multi-lead simulation</p>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="navigation">
+      <button id="realTimeBtn" class="nav-btn">Real-Time Monitor</button>
+      <button id="recordingBtn" class="nav-btn active">Multi-Lead Recording</button>
+    </nav>
+
+    <!-- Recording Setup Section -->
+    <section class="recording-setup">
+      <div class="setup-card">
+        <h2>Recording Configuration</h2>
+        <div class="config-group">
+          <label for="patientName">Patient Name:</label>
+          <input type="text" id="patientName" placeholder="Enter patient name" required>
+        </div>
+        <div class="config-group">
+          <label for="patientAge">Age:</label>
+          <input type="number" id="patientAge" placeholder="Age" min="1" max="120">
+        </div>
+        <div class="config-group">
+          <label for="patientGender">Gender:</label>
+          <select id="patientGender">
+            <option value="">Select Gender</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="config-group">
+          <label for="numReadings">Number of Lead Positions:</label>
+          <select id="numReadings">
+            <option value="3">3 Leads (Basic)</option>
+            <option value="6">6 Leads (Extended)</option>
+            <option value="12" selected>12 Leads (Full Simulation)</option>
+          </select>
+        </div>
+        <div class="config-group">
+          <label for="deviceId">Device ID:</label>
+          <input type="text" id="deviceId" placeholder="ECG Device ID" value="">
+        </div>
+        <div class="config-actions">
+          <button id="startSessionBtn" class="btn-primary">Start Recording Session</button>
+          <button id="demoSessionBtn" class="btn-demo">Demo Mode</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Connection Status -->
+    <section class="connection-status" id="connectionStatus" style="display: none;">
+      <div class="status-card">
+        <div id="connectionMessage" class="status-message">Connecting to device...</div>
+        <div class="connection-indicator">
+          <div class="indicator-dot" id="connectionDot"></div>
+          <span id="connectionText">Disconnected</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Recording Progress Section -->
+    <section class="recording-progress" id="recordingProgress" style="display: none;">
+      <div class="progress-card">
+        <h2>Recording Progress</h2>
+        <div class="session-info">
+          <div class="info-item">
+            <span class="label">Current Lead:</span>
+            <span id="currentLead" class="value">--</span>
+          </div>
+          <div class="info-item">
+            <span class="label">Progress:</span>
+            <span id="sessionProgress" class="value">0/0</span>
+          </div>
+          <div class="info-item">
+            <span class="label">Recording Time:</span>
+            <span id="recordingTime" class="value">--</span>
+          </div>
+        </div>
+        
+        <!-- Lead Position Guide -->
+        <div class="lead-guide" id="leadGuide">
+          <h3>Electrode Placement Guide</h3>
+          <div class="placement-instruction" id="placementInstruction">
+            Position electrodes according to the diagram below
+          </div>
+          <div class="electrode-diagram" id="electrodeDiagram">
+            <!-- Dynamic electrode placement diagram will be inserted here -->
+          </div>
+        </div>
+
+        <!-- Recording Controls -->
+        <div class="recording-controls">
+          <button id="startRecordingBtn" class="btn-record" disabled>Start 10s Recording</button>
+          <button id="skipRecordingBtn" class="btn-secondary" disabled>Skip This Lead</button>
+          <button id="stopSessionBtn" class="btn-danger" disabled>Stop Session</button>
+        </div>
+
+        <!-- Countdown Timer -->
+        <div class="countdown-timer" id="countdownTimer" style="display: none;">
+          <div class="timer-circle">
+            <div class="timer-text" id="timerText">10</div>
+          </div>
+          <div class="timer-label">Recording in progress...</div>
+        </div>
+
+        <!-- Real-time ECG Preview -->
+        <div class="chart-container">
+          <div class="chart-wrapper">
+            <h3>ECG Signal (Real-time)</h3>
+            <div class="chart-controls">
+              <div class="chart-info">
+                <span class="sweep-speed">Sweep: 25mm/s</span>
+                <span class="amplitude-scale">Scale: 10mm/mV</span>
+              </div>
+              <div class="signal-quality">
+                <span>Signal Quality: </span>
+                <span id="signalQuality" class="quality-value">--</span>
+              </div>
+            </div>
+            <div class="chart-area ecg-chart">
+              <canvas id="previewChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Completed Recordings Section -->
+    <section class="completed-recordings" id="completedRecordings" style="display: none;">
+      <div class="recordings-card">
+        <h2>Completed Recordings</h2>
+        <div class="recordings-list" id="recordingsList">
+          <!-- Completed recordings will be listed here -->
+        </div>
+        <div class="recordings-actions">
+          <button id="generateReportBtn" class="btn-success" disabled>Generate Report</button>
+          <button id="exportDataBtn" class="btn-secondary" disabled>Export Raw Data</button>
+          <button id="newSessionBtn" class="btn-primary">New Session</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Report Generation Section -->
+    <section class="report-section" id="reportSection" style="display: none;">
+      <div class="report-card">
+        <h2>ECG Analysis Report</h2>
+        <div class="report-header" id="reportHeader">
+          <!-- Patient info and session details -->
+        </div>
+        <div class="report-content" id="reportContent">
+          <!-- Generated report content -->
+        </div>
+        <div class="report-actions">
+          <button id="downloadPdfBtn" class="btn-primary">Download PDF</button>
+          <button id="printReportBtn" class="btn-secondary">Print Report</button>
+          <button id="backToRecordingsBtn" class="btn-secondary">Back to Recordings</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Notification System -->
+  <div id="notificationContainer" class="notification-container"></div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="recording-app.js"></script>
+</body>
+</html>

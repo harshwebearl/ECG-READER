@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECG Chart Debug</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 20px 0;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+        }
+        .debug-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.warning { background: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ECG Chart Debug Tool</h1>
+        
+        <div id="status" class="status">Initializing...</div>
+        
+        <div class="controls">
+            <button onclick="testBasicChart()">Test Basic Chart</button>
+            <button onclick="testECGData()">Test ECG Data</button>
+            <button onclick="testRealTimeUpdate()">Test Real-time Update</button>
+            <button onclick="clearChart()">Clear Chart</button>
+            <button onclick="runDiagnostics()">Run Full Diagnostics</button>
+        </div>
+        
+        <div class="chart-container">
+            <canvas id="debugChart"></canvas>
+        </div>
+        
+        <div id="debugInfo" class="debug-info">
+            Debug information will appear here...
+        </div>
+    </div>
+
+    <script>
+        let debugChart = null;
+        let updateInterval = null;
+        
+        function log(message, type = 'info') {
+            const debugInfo = document.getElementById('debugInfo');
+            const timestamp = new Date().toLocaleTimeString();
+            debugInfo.innerHTML += `[${timestamp}] ${type.toUpperCase()}: ${message}\n`;
+            debugInfo.scrollTop = debugInfo.scrollHeight;
+            
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+        
+        function initializeChart() {
+            const ctx = document.getElementById('debugChart').getContext('2d');
+            
+            if (!ctx) {
+                log('Failed to get canvas context!', 'error');
+                return false;
+            }
+            
+            try {
+                debugChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'ECG Signal',
+                            data: [],
+                            borderColor: '#dc3545',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0,
+                            pointRadius: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: false,
+                        scales: {
+                            x: {
+                                type: 'linear',
+                                display: true,
+                                title: {
+                                    display: true,
+                                    text: 'Time (seconds)'
+                                }
+                            },
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                title: {
+                                    display: true,
+                                    text: 'Amplitude (mV)'
+                                },
+                                min: -1.0,
+                                max: 1.0
+                            }
+                        }
+                    }
+                });
+                
+                log('Chart initialized successfully', 'success');
+                return true;
+            } catch (error) {
+                log(`Chart initialization failed: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        function testBasicChart() {
+            if (!debugChart && !initializeChart()) {
+                return;
+            }
+            
+            const testData = [
+                { x: 0, y: 0 },
+                { x: 1, y: 0.5 },
+                { x: 2, y: -0.3 },
+                { x: 3, y: 0.8 },
+                { x: 4, y: 0.2 },
+                { x: 5, y: -0.1 }
+            ];
+            
+            debugChart.data.datasets[0].data = testData;
+            debugChart.update();
+            
+            log(`Basic chart test completed with ${testData.length} points`, 'success');
+        }
+        
+        function testECGData() {
+            if (!debugChart && !initializeChart()) {
+                return;
+            }
+            
+            // Generate realistic ECG waveform
+            const ecgData = [];
+            const samplingRate = 100; // Hz
+            const duration = 5; // seconds
+            const heartRate = 75; // BPM
+            
+            for (let i = 0; i < duration * samplingRate; i++) {
+                const t = i / samplingRate;
+                const beatProgress = (t * heartRate / 60) % 1;
+                
+                let ecgValue = 0;
+                
+                // P wave
+                if (beatProgress >= 0.08 && beatProgress <= 0.14) {
+                    const pProgress = (beatProgress - 0.08) / 0.06;
+                    ecgValue += 0.1 * Math.sin(pProgress * Math.PI);
+                }
+                
+                // QRS complex
+                if (beatProgress >= 0.15 && beatProgress <= 0.25) {
+                    const qrsProgress = (beatProgress - 0.15) / 0.10;
+                    if (qrsProgress < 0.3) {
+                        ecgValue -= 0.05 * Math.sin(qrsProgress * Math.PI / 0.3);
+                    } else if (qrsProgress < 0.7) {
+                        ecgValue += 0.8 * Math.sin((qrsProgress - 0.3) * Math.PI / 0.4);
+                    } else {
+                        ecgValue -= 0.1 * Math.sin((qrsProgress - 0.7) * Math.PI / 0.3);
+                    }
+                }
+                
+                // T wave
+                if (beatProgress >= 0.35 && beatProgress <= 0.55) {
+                    const tProgress = (beatProgress - 0.35) / 0.20;
+                    ecgValue += 0.15 * Math.sin(tProgress * Math.PI);
+                }
+                
+                ecgData.push({ x: t, y: ecgValue });
+            }
+            
+            debugChart.data.datasets[0].data = ecgData;
+            debugChart.update();
+            
+            log(`ECG test completed with ${ecgData.length} points over ${duration} seconds`, 'success');
+        }
+        
+        function testRealTimeUpdate() {
+            if (!debugChart && !initializeChart()) {
+                return;
+            }
+            
+            if (updateInterval) {
+                clearInterval(updateInterval);
+                updateInterval = null;
+                log('Real-time update stopped', 'warning');
+                return;
+            }
+            
+            let sampleIndex = 0;
+            const maxPoints = 500; // 5 seconds at 100Hz
+            
+            updateInterval = setInterval(() => {
+                const t = sampleIndex / 100; // 100Hz sampling
+                const beatProgress = (t * 75 / 60) % 1; // 75 BPM
+                
+                let ecgValue = 0;
+                
+                // Simple ECG pattern
+                if (beatProgress >= 0.15 && beatProgress <= 0.25) {
+                    const qrsProgress = (beatProgress - 0.15) / 0.10;
+                    ecgValue = 0.8 * Math.sin(qrsProgress * Math.PI);
+                }
+                
+                // Add to chart
+                debugChart.data.datasets[0].data.push({ x: t, y: ecgValue });
+                
+                // Remove old points
+                if (debugChart.data.datasets[0].data.length > maxPoints) {
+                    debugChart.data.datasets[0].data.shift();
+                }
+                
+                debugChart.update('none');
+                sampleIndex++;
+                
+                if (sampleIndex % 100 === 0) {
+                    log(`Real-time update: ${sampleIndex} samples processed`, 'info');
+                }
+                
+            }, 10); // 100Hz
+            
+            log('Real-time update started (click again to stop)', 'success');
+        }
+        
+        function clearChart() {
+            if (debugChart) {
+                debugChart.data.datasets[0].data = [];
+                debugChart.update();
+                log('Chart cleared', 'info');
+            }
+        }
+        
+        function runDiagnostics() {
+            log('=== Running Full Diagnostics ===', 'info');
+            
+            // Check Chart.js availability
+            if (typeof Chart === 'undefined') {
+                log('Chart.js not loaded!', 'error');
+                return;
+            }
+            log(`Chart.js version: ${Chart.version}`, 'info');
+            
+            // Check canvas element
+            const canvas = document.getElementById('debugChart');
+            if (!canvas) {
+                log('Canvas element not found!', 'error');
+                return;
+            }
+            log(`Canvas size: ${canvas.width}x${canvas.height}`, 'info');
+            
+            // Check context
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                log('Cannot get 2D context!', 'error');
+                return;
+            }
+            log('2D context available', 'success');
+            
+            // Test chart creation
+            if (!debugChart) {
+                if (initializeChart()) {
+                    log('Chart creation successful', 'success');
+                } else {
+                    log('Chart creation failed', 'error');
+                    return;
+                }
+            }
+            
+            // Test data update
+            testBasicChart();
+            
+            log('=== Diagnostics Complete ===', 'success');
+        }
+        
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            log('Page loaded, initializing chart...', 'info');
+            initializeChart();
+        });
+    </script>
+</body>
+</html>

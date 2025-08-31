@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ECG Monitor - Bluetooth/WiFi</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        .connection-status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .connected {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .disconnected {
+            background-color: #f44336;
+            color: white;
+        }
+        .controls {
+            margin: 20px;
+            text-align: center;
+        }
+        .mode-selector {
+            margin: 10px;
+            padding: 10px;
+        }
+        #connectButton {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #ecgChart {
+            width: 100%;
+            height: 500px;
+        }
+        .data-value {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ECG Monitor - Bluetooth/WiFi Mode</h1>
+        
+        <div class="controls">
+            <select id="modeSelector" class="mode-selector">
+                <option value="bluetooth">Bluetooth Mode</option>
+                <option value="wifi">WiFi Mode</option>
+            </select>
+            <button id="connectButton">Connect</button>
+        </div>
+
+        <div id="connectionStatus" class="connection-status disconnected">
+            Disconnected
+        </div>
+
+        <div class="data-value">
+            Heart Rate: <span id="heartRateValue">-- BPM</span>
+        </div>
+
+        <div id="ecgChart"></div>
+    </div>
+
+    <script>
+        let chart;
+        let heartRateService = null;
+        let heartRateCharacteristic = null;
+        let wifiConnected = false;
+        let bluetoothConnected = false;
+        let dataPoints = [];
+        const maxDataPoints = 500;
+
+        // Initialize the chart
+        function initChart() {
+            let trace = {
+                y: [],
+                mode: 'lines',
+                line: { 
+                    color: '#2196F3',
+                    width: 2
+                },
+                name: 'ECG'
+            };
+
+            let layout = {
+                title: 'ECG Data',
+                xaxis: { 
+                    title: 'Time',
+                    showgrid: true,
+                    gridcolor: '#f0f0f0'
+                },
+                yaxis: { 
+                    title: 'Value',
+                    showgrid: true,
+                    gridcolor: '#f0f0f0',
+                    range: [0, 4095]  // Full ADC range for ESP32
+                },
+                plot_bgcolor: '#ffffff',
+                paper_bgcolor: '#ffffff',
+                margin: { t: 50, b: 50, l: 50, r: 20 },
+                showlegend: false
+            };
+
+            let config = {
+                responsive: true,
+                displayModeBar: true,
+                displaylogo: false,
+                scrollZoom: true
+            };
+
+            Plotly.newPlot('ecgChart', [trace], layout, config);
+        }
+
+        // Update chart with new data
+        function updateChart(value) {
+            // Add new data point
+            dataPoints.push(value);
+            if (dataPoints.length > maxDataPoints) {
+                dataPoints.shift();
+            }
+
+            // Create x-axis values (time points)
+            const timePoints = Array.from({length: dataPoints.length}, (_, i) => i);
+
+            // Update the plot with both x and y values
+            Plotly.update('ecgChart', {
+                x: [timePoints],
+                y: [dataPoints]
+            });
+
+            // If we have a full window of data, adjust the x-axis to show a moving window
+            if (dataPoints.length >= maxDataPoints) {
+                Plotly.relayout('ecgChart', {
+                    'xaxis.range': [timePoints[timePoints.length - 100], timePoints[timePoints.length - 1]]
+                });
+            }
+        }
+
+        // Bluetooth connection handler
+        async function connectBluetooth() {
+            try {
+                console.log('Requesting Bluetooth Device...');
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: ['heart_rate'] }]
+                });
+
+                console.log('Connecting to device...');
+                const server = await device.gatt.connect();
+
+                console.log('Getting Heart Rate Service...');
+                heartRateService = await server.getPrimaryService('heart_rate');
+
+                console.log('Getting Heart Rate Characteristic...');
+                heartRateCharacteristic = await heartRateService.getCharacteristic('heart_rate_measurement');
+
+                await heartRateCharacteristic.startNotifications();
+                heartRateCharacteristic.addEventListener('characteristicvaluechanged', handleHeartRateData);
+
+                document.getElementById('connectionStatus').className = 'connection-status connected';
+                document.getElementById('connectionStatus').textContent = 'Connected to ' + device.name;
+                bluetoothConnected = true;
+
+            } catch (error) {
+                console.error('Bluetooth Error:', error);
+                document.getElementById('connectionStatus').className = 'connection-status disconnected';
+                document.getElementById('connectionStatus').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        // Handle incoming heart rate data
+        function handleHeartRateData(event) {
+            const value = event.target.value;
+            if (!value) return;
+
+            try {
+                // Get the flags byte
+                const flags = value.getUint8(0);
+                
+                // Get the heart rate measurement
+                const heartRate = value.getUint8(1);
+                
+                // Update heart rate display
+                document.getElementById('heartRateValue').textContent = heartRate + ' BPM';
+                
+                // Get the raw ECG value if available (our custom format)
+                if (value.byteLength >= 4) {
+                    const timestamp = value.getUint16(2, true); // true for little-endian
+                    const ecgValue = heartRate; // For now, using heart rate as ECG value
+                    
+                    console.log('Received:', {
+                        flags: flags,
+                        heartRate: heartRate,
+                        timestamp: timestamp,
+                        ecgValue: ecgValue
+                    });
+                    
+                    updateChart(ecgValue);
+                }
+            } catch (error) {
+                console.error('Error processing heart rate data:', error);
+            }
+        }
+
+        // WiFi connection handler using MQTT
+        function connectWiFi() {
+            // Add your MQTT connection code here
+            // Similar to what's in debug-chart.html
+            document.getElementById('connectionStatus').className = 'connection-status connected';
+            document.getElementById('connectionStatus').textContent = 'Connected via WiFi';
+            wifiConnected = true;
+        }
+
+        // Event listeners
+        document.getElementById('connectButton').addEventListener('click', () => {
+            const mode = document.getElementById('modeSelector').value;
+            if (mode === 'bluetooth') {
+                connectBluetooth();
+            } else {
+                connectWiFi();
+            }
+        });
+
+        // Initialize chart on page load
+        initChart();
+    </script>
+</body>
+</html>

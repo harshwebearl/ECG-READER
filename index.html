@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ECG Real-Time Monitor</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="./ecg-chart.html">
+  
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>ECG Real-Time Monitor</h1>
+      <p class="subtitle">Real-time ECG monitoring with heart rate analysis</p>
+    </header>
+    <nav class="navigation">
+      <button id="realTimeBtn" class="nav-btn active">Real-Time Monitor</button>
+      <button id="recordingBtn" class="nav-btn">Multi-Lead Recording</button>
+    </nav>
+    <section class="connection-section">
+      <div class="connection-type">
+        <label class="radio-label">
+          <input type="radio" name="connectionType" value="wifi" checked> WiFi
+        </label>
+        <label class="radio-label">
+          <input type="radio" name="connectionType" value="bluetooth"> Bluetooth
+        </label>
+      </div>
+      <div class="input-group">
+        <label for="deviceIdInput">Device ID:</label>
+        <input type="text" id="deviceIdInput" placeholder="Enter device ID (e.g. P1, P2, P3)" value="P3">
+        <button id="scanBtn" class="btn-small">🔍 Scan</button>
+        <button id="connectBtn" class="btn-primary">Connect</button>
+        <button id="saveDeviceBtn" class="btn-small">💾 Save Device</button>
+        <button id="disconnectBtn" class="btn-secondary" disabled>Disconnect</button>
+        <button id="debugToggleBtn" class="btn-small">Debug</button>
+      </div>
+      <div class="saved-devices">
+        <label>Saved Devices:</label>
+        <select id="savedDevicesSelect">
+          <option value="">Select a saved device...</option>
+        </select>
+        <button id="deleteSavedBtn" class="btn-small">🗑️ Delete</button>
+      </div>
+      <div id="status" class="status">Status: Not connected</div>
+      <div id="debugInfo" class="debug-info" style="display: none;">
+        <small>Debug: <span id="debugText"></span></small>
+      </div>
+    </section>
+    <section class="data-section">
+      <div class="data-grid">
+        <div class="data-card">
+          <div class="data-label">ECG Value</div>
+          <div class="data-value" id="ecgValue">--</div>
+          <div class="data-unit">ADC Units</div>
+        </div>
+        <div class="data-card">
+          <div class="data-label">Heart Rate</div>
+          <div class="data-value" id="bpmValue">--</div>
+          <div class="data-unit">BPM</div>
+        </div>
+        <div class="data-card">
+          <div class="data-label">Signal Quality</div>
+          <div class="data-value" id="signalQuality">--</div>
+          <div class="data-unit">%</div>
+        </div>
+        <div class="data-card">
+          <div class="data-label">Last Update</div>
+          <div class="data-value" id="timestamp">--:--:--</div>
+          <div class="data-unit">Time</div>
+        </div>
+        <div class="data-card status-card">
+          <div class="data-label">ECG Status</div>
+          <div class="status-indicators" id="statusIndicators"></div>
+        </div>
+      </div>
+    </section>
+    <section class="intervals-section">
+      <h2>ECG Interval Analysis</h2>
+      <div class="intervals-grid">
+        <div class="interval-card pr-interval">
+          <div class="interval-label">PR Interval</div>
+          <div class="interval-value" id="prInterval">--</div>
+          <div class="interval-unit">ms</div>
+          <div class="interval-status" id="prStatus">Normal: 120-200ms</div>
+        </div>
+        <div class="interval-card qrs-interval">
+          <div class="interval-label">QRS Duration</div>
+          <div class="interval-value" id="qrsInterval">--</div>
+          <div class="interval-unit">ms</div>
+          <div class="interval-status" id="qrsStatus">Normal: 80-120ms</div>
+        </div>
+        <div class="interval-card qt-interval">
+          <div class="interval-label">QT Interval</div>
+          <div class="interval-value" id="qtInterval">--</div>
+          <div class="interval-unit">ms</div>
+          <div class="interval-status" id="qtStatus">Normal: 350-450ms</div>
+        </div>
+        <div class="interval-card qtc-interval">
+          <div class="interval-label">QTc (Corrected)</div>
+          <div class="interval-value" id="qtcInterval">--</div>
+          <div class="interval-unit">ms</div>
+          <div class="interval-status" id="qtcStatus">Normal: &lt;440ms (♀), &lt;430ms (♂)</div>
+        </div>
+      </div>
+    </section>
+    <section class="charts-section">
+      <div class="chart-container">
+        <div class="chart-wrapper">
+          <h3>ECG Signal (Real-time)</h3>
+          <div class="chart-controls">
+            <button id="pauseBtn" class="btn-small">Pause</button>
+            <button id="clearBtn" class="btn-small">Clear</button>
+            <button id="analyzeBtn" class="btn-small">Analyze Beat</button>
+            <button id="generateRealtimeReportBtn" class="btn-small btn-report">Generate Report</button>
+            <div class="chart-info">
+              <span class="sweep-speed">Display: 10 seconds</span>
+              <span class="amplitude-scale">Sampling: 500Hz</span>
+            </div>
+          </div>
+          <div class="chart-area ecg-chart">
+            <canvas id="ecgChart"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="chart-container">
+        <div class="chart-wrapper">
+          <h3>ECG Beat Analysis</h3>
+          <div class="chart-controls">
+            <span class="analysis-info">Last analyzed beat with detected intervals</span>
+          </div>
+          <div class="chart-area">
+            <canvas id="beatChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="morphology-section">
+      <h2>ECG Wave Analysis</h2>
+      <div class="morphology-grid">
+        <div class="wave-card p-wave">
+          <div class="wave-label">P Wave</div>
+          <div class="wave-status" id="pWaveStatus">--</div>
+          <div class="wave-details">
+            <span>Amplitude: <span id="pWaveAmp">--</span> mV</span>
+            <span>Duration: <span id="pWaveDur">--</span> ms</span>
+          </div>
+        </div>
+        <div class="wave-card qrs-wave">
+          <div class="wave-label">QRS Complex</div>
+          <div class="wave-status" id="qrsWaveStatus">--</div>
+          <div class="wave-details">
+            <span>Amplitude: <span id="qrsWaveAmp">--</span> mV</span>
+            <span>Morphology: <span id="qrsMorphology">--</span></span>
+          </div>
+        </div>
+        <div class="wave-card t-wave">
+          <div class="wave-label">T Wave</div>
+          <div class="wave-status" id="tWaveStatus">--</div>
+          <div class="wave-details">
+            <span>Amplitude: <span id="tWaveAmp">--</span> mV</span>
+            <span>Polarity: <span id="tWavePolarity">--</span></span>
+          </div>
+        </div>
+        <div class="wave-card rhythm-analysis">
+          <div class="wave-label">Rhythm Analysis</div>
+          <div class="wave-status" id="rhythmStatus">--</div>
+          <div class="wave-details">
+            <span>Regularity: <span id="rhythmRegularity">--</span></span>
+            <span>Classification: <span id="rhythmClass">--</span></span>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="stats-section">
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-label">Average BPM</div>
+          <div class="stat-value" id="avgBpm">--</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Min BPM</div>
+          <div class="stat-value" id="minBpm">--</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Max BPM</div>
+          <div class="stat-value" id="maxBpm">--</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Data Points</div>
+          <div class="stat-value" id="dataCount">0</div>
+        </div>
+      </div>
+    </section>
+  </div>
+  <div id="notificationContainer" class="notification-container"></div>
+  <div id="realtimeReportModal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Real-Time ECG Analysis Report</h2>
+        <span class="close-modal" id="closeReportModal">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="report-form">
+          <div class="form-group">
+            <label for="reportPatientName">Patient Name:</label>
+            <input type="text" id="reportPatientName" placeholder="Enter patient name">
+          </div>
+          <div class="form-group">
+            <label for="reportPatientAge">Age:</label>
+            <input type="number" id="reportPatientAge" placeholder="Age" min="1" max="120">
+          </div>
+          <div class="form-group">
+            <label for="reportPatientGender">Gender: *</label>
+            <select id="reportPatientGender" required>
+              <option value="">Select Gender</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="reportPatientHeight">Height (cm): *</label>
+            <input type="number" id="reportPatientHeight" placeholder="Height in cm" min="50" max="250" required>
+          </div>
+          <div class="form-group">
+            <label for="reportPatientWeight">Weight (kg): *</label>
+            <input type="number" id="reportPatientWeight" placeholder="Weight in kg" min="10" max="300" required>
+          </div>
+          <div class="form-actions">
+            <button id="generateReportBtn" class="btn-primary">Generate Report</button>
+            <button id="cancelReportBtn" class="btn-secondary">Cancel</button>
+          </div>
+        </div>
+        <div id="reportContent" class="report-display" style="display: none;">
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
