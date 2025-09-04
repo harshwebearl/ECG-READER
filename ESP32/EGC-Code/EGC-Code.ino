@@ -48,7 +48,7 @@ WiFiManager wifiManager;
 unsigned long lastSendTime = 0;
 unsigned long lastHeartbeat = 0;
 unsigned long lastReconnectAttempt = 0;
-const int sendInterval = 100; // 100Hz sampling rate
+const int sendInterval = 75; // 100Hz sampling rate
 const int heartbeatInterval = 300000;
 const int reconnectInterval = 5000;
 
